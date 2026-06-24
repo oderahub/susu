@@ -3,8 +3,8 @@ import { Reveal } from "@/components/reveal";
 
 const FEATURES = [
   {
-    title: "Pay yourself last",
-    body: "One deposit splits an obligation away, locks a reserve irreversibly, and holds the rest.",
+    title: "Save together & for yourself",
+    body: "Every contribution is one deposit: dues split to the recipient, a savings slice locked for you, the rest held — all three primitives at once.",
   },
   {
     title: "Cannot default",
@@ -69,11 +69,6 @@ export default function Home() {
             </Link>
             <Link href="/circles" className="glass glass-hover rounded-xl px-5 py-2.5 font-medium">
               Browse circles
-            </Link>
-          </div>
-          <div className="float-in mt-4" style={{ animationDelay: "220ms" }}>
-            <Link href="/spine" className="text-sm text-[var(--muted)] transition-colors hover:text-white">
-              or try the solo Ratchet vault →
             </Link>
           </div>
         </div>

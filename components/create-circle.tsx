@@ -11,6 +11,7 @@ export default function CreateCircle() {
   const router = useRouter();
   const [name, setName] = useState("Lagos Builders");
   const [contribution, setContribution] = useState("1");
+  const [save, setSave] = useState("1");
   const [seats, setSeats] = useState(3);
   const [creatorName, setCreatorName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +27,7 @@ export default function CreateCircle() {
       const res = await fetch("/api/circles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, contribution, seats, creator: address, creatorName: creatorName || undefined }),
+        body: JSON.stringify({ name, contribution, save, seats, creator: address, creatorName: creatorName || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create circle");
@@ -57,20 +58,28 @@ export default function CreateCircle() {
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Contribution / round (USDCx)">
+          <Field label="Dues / round (USDCx → pot)">
             <input value={contribution} onChange={(e) => setContribution(e.target.value)} inputMode="decimal" className={inputCls} />
           </Field>
-          <Field label="Seats">
-            <input
-              type="number"
-              min={2}
-              max={12}
-              value={seats}
-              onChange={(e) => setSeats(Number(e.target.value))}
-              className={inputCls}
-            />
+          <Field label="Savings / round (locked for you)">
+            <input value={save} onChange={(e) => setSave(e.target.value)} inputMode="decimal" className={inputCls} />
           </Field>
         </div>
+        <p className="-mt-1 text-xs text-[var(--muted)]">
+          Each contribution is one deposit: your <strong>dues</strong> split to the round&apos;s recipient, your{" "}
+          <strong>savings</strong> lock for you — save together and for yourself.
+        </p>
+
+        <Field label="Seats">
+          <input
+            type="number"
+            min={2}
+            max={12}
+            value={seats}
+            onChange={(e) => setSeats(Number(e.target.value))}
+            className={inputCls}
+          />
+        </Field>
 
         <Field label="Your display name (optional)">
           <input

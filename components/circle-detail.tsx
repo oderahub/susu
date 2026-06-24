@@ -7,18 +7,19 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/hooks/use-wallet";
-import { signingClient, tokenToMicro, fetchVaultState } from "@/lib/flowvault";
+import { signingClient, tokenToMicro, microToToken, fetchVaultState } from "@/lib/flowvault";
 import { walletExecutor } from "@/lib/wallet";
 import { rulesEqual } from "@/lib/routing";
 import { depositPostCondition } from "@/lib/postconditions";
 import { schedule, contributionRules } from "@/lib/circle";
-import { explorerTx } from "@/lib/config";
+import { explorerTx, SAVE_LOCK_BLOCKS } from "@/lib/config";
 
 type ApiMember = { name: string; address: string; reputation: number; joinedAt: number };
 type ApiCircle = {
   id: string;
   name: string;
   contribution: string;
+  save: string;
   seats: number;
   creator: string;
   createdAt: number;
@@ -37,6 +38,7 @@ export default function CircleDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [txs, setTxs] = useState<{ label: string; txId: string }[]>([]);
+  const [myVault, setMyVault] = useState<Awaited<ReturnType<typeof fetchVaultState>> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,8 +55,18 @@ export default function CircleDetail({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [load]);
 
+  useEffect(() => {
+    if (!address) {
+      setMyVault(null);
+      return;
+    }
+    fetchVaultState(address)
+      .then(setMyVault)
+      .catch(() => setMyVault(null));
+  }, [address]);
+
   const rounds = useMemo(
-    () => (circle ? schedule({ members: circle.members, contribution: circle.contribution }) : []),
+    () => (circle ? schedule({ members: circle.members, contribution: circle.contribution, save: circle.save }) : []),
     [circle],
   );
   const round = rounds[activeRound];
@@ -100,10 +112,13 @@ export default function CircleDetail({ id }: { id: string }) {
     setError(null);
     setBusy("contribute");
     try {
-      const amountMicro = tokenToMicro(circle.contribution);
-      const rules = contributionRules(round.recipient.address, amountMicro);
+      const duesMicro = tokenToMicro(circle.contribution);
+      const saveMicro = tokenToMicro(circle.save || "0");
+      const amountMicro = duesMicro + saveMicro;
       const client = signingClient(address, walletExecutor);
       const state = await fetchVaultState(address);
+      const lockUntilBlock = state.currentBlock + SAVE_LOCK_BLOCKS;
+      const rules = contributionRules(round.recipient.address, duesMicro, saveMicro, lockUntilBlock);
       if (!rulesEqual(state.routingRules, rules)) {
         await client.setRoutingRules(rules);
       }
@@ -112,9 +127,13 @@ export default function CircleDetail({ id }: { id: string }) {
         postConditions: [depositPostCondition(address, amountMicro)],
       });
       setTxs((t) => [
-        { label: `${circle.contribution} USDCx → ${round.recipient.name} (round ${activeRound + 1})`, txId: tx.txId },
+        {
+          label: `${circle.contribution} dues → ${round.recipient.name} + ${circle.save} locked (round ${activeRound + 1})`,
+          txId: tx.txId,
+        },
         ...t,
       ]);
+      fetchVaultState(address).then(setMyVault).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Contribution failed");
     } finally {
@@ -263,18 +282,38 @@ export default function CircleDetail({ id }: { id: string }) {
             Round {activeRound + 1}: <span className="text-[var(--foreground)]">{round.recipient.name}</span> receives.
           </p>
           {myRole === "contributor" ? (
-            <button
-              onClick={contribute}
-              disabled={!!busy}
-              className="mt-3 rounded-xl bg-[var(--brand)] px-4 py-2 font-medium text-black hover:brightness-110 disabled:opacity-50"
-            >
-              {busy === "contribute" ? "Signing…" : `Contribute ${circle.contribution} USDCx → ${round.recipient.name}`}
-            </button>
+            <div className="mt-3">
+              <p className="text-sm text-[var(--muted)]">
+                One deposit of{" "}
+                <strong className="text-[var(--foreground)]">
+                  {Number(circle.contribution) + Number(circle.save || 0)} USDCx
+                </strong>
+                : {circle.contribution} dues → {round.recipient.name}, {circle.save} locked as your savings.
+              </p>
+              <button
+                onClick={contribute}
+                disabled={!!busy}
+                className="mt-2 rounded-xl bg-[var(--brand)] px-4 py-2 font-medium text-black hover:brightness-110 disabled:opacity-50"
+              >
+                {busy === "contribute" ? "Signing…" : "Contribute"}
+              </button>
+            </div>
           ) : myRole === "recipient" ? (
             <p className="mt-3 text-emerald-400">You receive this round — contributions arrive in your wallet.</p>
           ) : (
             <p className="mt-3 text-[var(--muted)]">You&apos;re not a contributor this round.</p>
           )}
+        </section>
+      )}
+
+      {isMember && myVault && myVault.lockedBalance > 0 && (
+        <section className="glass mt-6 rounded-2xl p-5">
+          <h2 className="font-medium">Your savings</h2>
+          <p className="mt-2 text-sm">
+            🔒 <strong>{microToToken(myVault.lockedBalance)} USDCx</strong> locked until block #
+            {myVault.lockUntilBlock}. No early-unlock exists — not even you can withdraw it early. It frees when the
+            lock expires.
+          </p>
         </section>
       )}
 

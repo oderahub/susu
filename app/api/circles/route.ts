@@ -18,14 +18,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, contribution, seats, creator, creatorName } = body;
+  const { name, contribution, save, seats, creator, creatorName } = body;
 
   if (typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
   const amount = Number(contribution);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: "contribution must be greater than 0" }, { status: 400 });
+    return NextResponse.json({ error: "dues must be greater than 0" }, { status: 400 });
+  }
+  const saveAmount = Number(save);
+  if (!Number.isFinite(saveAmount) || saveAmount < 0) {
+    return NextResponse.json({ error: "savings must be 0 or greater" }, { status: 400 });
   }
   const seatCount = Number(seats);
   if (!Number.isInteger(seatCount) || seatCount < 2 || seatCount > 12) {
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
     id: crypto.randomUUID().slice(0, 8),
     name: name.trim().slice(0, 60),
     contribution: String(contribution),
+    save: String(saveAmount),
     seats: seatCount,
     creator,
     createdAt: now,

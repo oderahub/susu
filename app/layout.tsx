@@ -43,9 +43,6 @@ export default function RootLayout({
               <Link href="/create" className="transition-colors hover:text-white">
                 Create
               </Link>
-              <Link href="/spine" className="transition-colors hover:text-white">
-                Spine
-              </Link>
             </div>
             <span className="ml-auto rounded-full border border-[var(--surface-border)] px-3 py-1 text-xs text-[var(--muted)]">
               Stacks testnet

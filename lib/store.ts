@@ -21,8 +21,10 @@ export interface CircleMember {
 export interface StoredCircle {
   id: string;
   name: string;
-  /** Whole USDCx each member contributes per round. */
+  /** Whole USDCx of dues each member splits to the round's recipient. */
   contribution: string;
+  /** Whole USDCx each member locks as personal savings per contribution. */
+  save: string;
   /** Number of seats (= rounds when full). */
   seats: number;
   creator: string;

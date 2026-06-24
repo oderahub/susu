@@ -22,8 +22,10 @@ export interface Member {
 
 export interface Circle {
   members: Member[];
-  /** Whole USDCx each member contributes per round. */
+  /** Whole USDCx of dues each member splits to the round's recipient. */
   contribution: string;
+  /** Whole USDCx each member locks as personal savings per contribution (0 = none). */
+  save: string;
 }
 
 export interface Round {
@@ -59,16 +61,26 @@ export function schedule(circle: Circle): Round[] {
 }
 
 /**
- * Routing rules for one contribution: the full amount passes straight through to
- * the round's recipient (split = amount, nothing held, nothing locked, nothing
- * pooled — so it is insulated from the token-confusion drain in SECURITY.md).
+ * Routing rules for one "save-while-you-circle" contribution — a single deposit
+ * that uses all three primitives:
+ *   - SPLIT: `dues` route straight to the round's recipient (pass-through, never
+ *     pooled, so it's insulated from the token-confusion drain in SECURITY.md).
+ *   - LOCK:  `save` is locked to the depositor themselves (self-only) as personal
+ *     forced savings, until `lockUntilBlock`.
+ *   - HOLD:  the remainder stays in the depositor's vault.
+ * The deposit amount is `dues + save`.
  */
-export function contributionRules(recipient: string, contributionMicro: bigint): RoutingRules {
+export function contributionRules(
+  recipient: string,
+  duesMicro: bigint,
+  saveMicro: bigint,
+  lockUntilBlock: number,
+): RoutingRules {
   return {
-    lockAmount: 0n,
-    lockUntilBlock: 0,
+    lockAmount: saveMicro,
+    lockUntilBlock: saveMicro > 0n ? lockUntilBlock : 0,
     splitAddress: recipient,
-    splitAmount: contributionMicro,
+    splitAmount: duesMicro,
   };
 }
 

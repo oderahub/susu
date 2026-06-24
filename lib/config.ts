@@ -47,3 +47,6 @@ export const explorerContract = (contractId: string) =>
  * show a false-precise countdown. Calibrate empirically on testnet before demo.
  */
 export const APPROX_SECONDS_PER_BLOCK = 30;
+
+/** How long a member's personal savings stay locked, in blocks (extends with each contribution). */
+export const SAVE_LOCK_BLOCKS = 30;

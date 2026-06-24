@@ -17,15 +17,20 @@ Behaviors*.
 
 ## What it does
 
-A group takes turns receiving the pooled contributions. Two surfaces:
+A group takes turns receiving the pooled contributions — and **every contribution
+also force-saves for the member who makes it.** Susu is *ajo where each payment
+saves for you too.*
 
-- **Ratchet spine** (`/`) — the engine: a *pay-yourself-last* vault. One deposit
-  splits a slice to an obligation, locks a reserve irreversibly, and holds the
-  rest. The locked reserve has **no early-unlock function — not even you can pull
-  it** (the demo's "no escape hatch" beat).
-- **Circle** (`/circle`) — the rotation: a trust-tiered schedule where each round
-  pays one member via a **direct pass-through split**, and the least-trusted
-  member is seated last.
+Each scheduled contribution is **one deposit that uses all three FlowVault
+primitives at once:**
+
+- **`split`** — your *dues* route straight to this round's recipient (the rotation).
+- **`lock`** — a *personal savings* slice locks for **you** until a future block
+  (self-only — no early-unlock exists, not even for you).
+- **`hold`** — the remainder stays in your vault.
+
+The newest member is **seated last**, where they've fully paid in before they
+receive — so they structurally **cannot default.**
 
 ## Why it's novel — the default problem, solved by *ordering* not *code*
 
@@ -48,11 +53,11 @@ We **compose the deployed `flowvault-v2` contract** via `flowvault-sdk` — we d
 **not** deploy our own vault (that would be the "wallet wrapper" anti-pattern the
 bounty discourages).
 
-| Primitive | Role |
+| Primitive | Role in every contribution |
 |-----------|------|
-| `split`   | the rotating payout — pass-through, depositor → recipient in one tx, never pooled |
-| `lock`    | the Ratchet spine + optional self-lock of a received payout |
-| `hold`    | each member's working buffer |
+| `split`   | your **dues**, routed to the round's recipient — pass-through (never pooled), destination computed per round by the schedule |
+| `lock`    | your **personal savings**, locked to you (self-only, irreversible) until a future block |
+| `hold`    | the remainder, kept in your own vault |
 
 **Non-custodial:** every member signs their own deposits with their own wallet
 (`@stacks/connect`). The coordinator only *reads* on-chain state and computes the
@@ -81,8 +86,10 @@ so funds never pool in the contract. See [`SECURITY.md`](./SECURITY.md).
 
 ```bash
 npm install
-npm run dev          # → http://localhost:3000  (spine)  ·  /circle  (rotation)
+npm run dev          # → http://localhost:3000
 ```
+
+Flow: `/` landing → `/circles` browse → `/create` → `/c/<id>` (your circle).
 
 The schedule board and the *cannot-default* beat render with **zero funds**. To
 run live transactions you need a **testnet** wallet (Leather / Xverse) with:
@@ -96,6 +103,6 @@ contribute as each member (the app re-reads your active account on tab focus).
 ## Tech
 
 Next.js 16 (App Router) · TypeScript · Tailwind v4 · `flowvault-sdk` ·
-`@stacks/connect` v8 · Stacks testnet (`flowvault-v2` / `usdcx`).
-
-See [`PLAN.md`](./PLAN.md) for the full design and build log.
+`@stacks/connect` v8 · Stacks testnet (`flowvault-v2` / `usdcx`). Circle metadata
+persists in Upstash Redis (in-memory fallback for local dev); all money movement
+is on-chain and non-custodial.
