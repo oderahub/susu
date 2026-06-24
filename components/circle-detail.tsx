@@ -39,6 +39,7 @@ export default function CircleDetail({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
   const [txs, setTxs] = useState<{ label: string; txId: string }[]>([]);
   const [myVault, setMyVault] = useState<Awaited<ReturnType<typeof fetchVaultState>> | null>(null);
+  const [saveAmount, setSaveAmount] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -113,7 +114,8 @@ export default function CircleDetail({ id }: { id: string }) {
     setBusy("contribute");
     try {
       const duesMicro = tokenToMicro(circle.contribution);
-      const saveMicro = tokenToMicro(circle.save || "0");
+      const saveStr = saveAmount.trim() || circle.save || "0";
+      const saveMicro = tokenToMicro(saveStr);
       const amountMicro = duesMicro + saveMicro;
       const client = signingClient(address, walletExecutor);
       const state = await fetchVaultState(address);
@@ -128,7 +130,7 @@ export default function CircleDetail({ id }: { id: string }) {
       });
       setTxs((t) => [
         {
-          label: `${circle.contribution} dues → ${round.recipient.name} + ${circle.save} locked (round ${activeRound + 1})`,
+          label: `${circle.contribution} dues → ${round.recipient.name} + ${saveStr} locked (round ${activeRound + 1})`,
           txId: tx.txId,
         },
         ...t,
@@ -148,6 +150,8 @@ export default function CircleDetail({ id }: { id: string }) {
         Circle not found. <a href="/create" className="text-[var(--brand)] hover:underline">Start one →</a>
       </main>
     );
+
+  const effectiveSave = saveAmount.trim() || circle.save || "0";
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
@@ -282,18 +286,29 @@ export default function CircleDetail({ id }: { id: string }) {
             Round {activeRound + 1}: <span className="text-[var(--foreground)]">{round.recipient.name}</span> receives.
           </p>
           {myRole === "contributor" ? (
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
+              <label className="block text-sm text-[var(--muted)]">
+                Your savings this round (USDCx — locked for you):
+                <input
+                  value={saveAmount}
+                  onChange={(e) => setSaveAmount(e.target.value)}
+                  inputMode="decimal"
+                  placeholder={circle.save}
+                  className="ml-2 w-24 rounded-md border border-[var(--surface-border)] bg-transparent px-2 py-1 text-sm text-[var(--foreground)]"
+                />
+              </label>
               <p className="text-sm text-[var(--muted)]">
                 One deposit of{" "}
                 <strong className="text-[var(--foreground)]">
-                  {Number(circle.contribution) + Number(circle.save || 0)} USDCx
+                  {Number(circle.contribution) + Number(effectiveSave)} USDCx
                 </strong>
-                : {circle.contribution} dues → {round.recipient.name}, {circle.save} locked as your savings.
+                : {circle.contribution} dues (equal for all) → {round.recipient.name}, {effectiveSave} locked as your
+                savings.
               </p>
               <button
                 onClick={contribute}
                 disabled={!!busy}
-                className="mt-2 rounded-xl bg-[var(--brand)] px-4 py-2 font-medium text-black hover:brightness-110 disabled:opacity-50"
+                className="rounded-xl bg-[var(--brand)] px-4 py-2 font-medium text-black hover:brightness-110 disabled:opacity-50"
               >
                 {busy === "contribute" ? "Signing…" : "Contribute"}
               </button>

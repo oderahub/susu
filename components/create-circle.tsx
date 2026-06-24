@@ -61,13 +61,13 @@ export default function CreateCircle() {
           <Field label="Dues / round (USDCx → pot)">
             <input value={contribution} onChange={(e) => setContribution(e.target.value)} inputMode="decimal" className={inputCls} />
           </Field>
-          <Field label="Savings / round (locked for you)">
+          <Field label="Suggested savings / round">
             <input value={save} onChange={(e) => setSave(e.target.value)} inputMode="decimal" className={inputCls} />
           </Field>
         </div>
         <p className="-mt-1 text-xs text-[var(--muted)]">
-          Each contribution is one deposit: your <strong>dues</strong> split to the round&apos;s recipient, your{" "}
-          <strong>savings</strong> lock for you — save together and for yourself.
+          <strong>Dues</strong> are equal for everyone (the shared pot). <strong>Savings</strong> are personal — this
+          is just the suggested default; each member sets their own when they contribute.
         </p>
 
         <Field label="Seats">
