@@ -89,12 +89,33 @@ function memoryStore(): CircleStore {
   };
 }
 
+function pickEnv(suffix: RegExp): string | undefined {
+  const key = Object.keys(process.env).find((k) => suffix.test(k) && process.env[k]);
+  return key ? process.env[key] : undefined;
+}
+
+/**
+ * Resolve Upstash REST creds. Handles the explicit names plus any prefix Vercel's
+ * Upstash integration applies (e.g. STORAGE_KV_REST_API_URL), so the "Custom
+ * Prefix" chosen when connecting the database doesn't matter.
+ */
+function resolveUpstashCreds(): { url: string; token: string } | null {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.KV_REST_API_URL ||
+    pickEnv(/(_REST_API_URL|_REST_URL)$/);
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.KV_REST_API_TOKEN ||
+    pickEnv(/(_REST_API_TOKEN|_REST_URL_TOKEN|_REST_TOKEN)$/);
+  return url && token ? { url, token } : null;
+}
+
 function makeStore(): CircleStore {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) return upstashStore(new Redis({ url, token }));
+  const creds = resolveUpstashCreds();
+  if (creds) return upstashStore(new Redis(creds));
   if (process.env.NODE_ENV === "production") {
-    console.warn("[susu] No Upstash credentials — circles will NOT persist across serverless invocations.");
+    console.warn("[susu] No Upstash credentials found — circles will NOT persist across serverless invocations.");
   }
   return memoryStore();
 }
