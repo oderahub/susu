@@ -192,7 +192,10 @@ export default function CircleDetail({ id }: { id: string }) {
         <ul className="mt-2 list-inside list-disc space-y-1">
           <li>Each round, everyone contributes {Number(circle.contribution)} USDCx; one member receives the pot.</li>
           <li>Payouts are <strong>direct splits</strong> — funds never pool in any contract.</li>
-          <li>Seating is <strong>trust-tiered</strong>: the newest member is seated last, where they cannot default.</li>
+          <li>
+            Seating is <strong>trust-tiered</strong>: the newest member is seated last, where they cannot default.
+            Seats go by reputation (earned from completed circles) — creating earns no head start.
+          </li>
           <li>Non-custodial — you sign every contribution yourself.</li>
         </ul>
       </section>
@@ -237,6 +240,13 @@ export default function CircleDetail({ id }: { id: string }) {
       {/* Schedule board */}
       <section className="mt-6">
         <h2 className="font-medium">Schedule</h2>
+        {rounds[0]?.recipient.reputation === 0 && (
+          <p className="mt-2 rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+            ℹ️ Seats go by reputation, earned from completed circles. No member here has a track record yet, so the
+            first recipient collects on <strong>social trust</strong> — early-payout risk isn&apos;t priced yet
+            (reputation + early-access premium are on the roadmap).
+          </p>
+        )}
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rounds.map((r) => {
             const safe = r.exposureAfter === 0;

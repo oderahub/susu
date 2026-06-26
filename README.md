@@ -69,11 +69,14 @@ During integration review we identified a vulnerability in the deployed FlowVaul
 contract and **disclosed it privately to the FlowVault team (2026-06-23).** Exploit
 details are withheld until a fix lands, per responsible disclosure. Susu is
 architected to avoid the affected path — money movement is **pass-through `split`**,
-so funds never pool in the contract. See [`SECURITY.md`](./SECURITY.md).
-*(Testnet — no real-money impact.)*
+so funds never pool in the contract. *(Testnet — no real-money impact.)*
 
 ## Honest limitations
 
+- The **first / early recipient** (e.g. a new organizer) is **not** default-proof —
+  the seating lever only protects the *last* members. It's handled by reputation +
+  an early-access premium (see Roadmap), never by slashing — FlowVault's `lock`
+  can't seize funds.
 - A **one-shot circle of anonymous strangers** all wanting early slots is still
   vulnerable — that's the bootstrap problem of undercollateralized credit, not a
   FlowVault gap. Susu targets communities/acquaintances building reputation.
@@ -99,6 +102,32 @@ run live transactions you need a **testnet** wallet (Leather / Xverse) with:
 
 For a live circle round, fund 2–3 testnet addresses and switch accounts to
 contribute as each member (the app re-reads your active account on tab focus).
+
+## Roadmap — the trust economy
+
+An *early* recipient's default can't be prevented cryptographically (FlowVault's
+`lock` is self-only — no slashing, no escrow). Susu handles it with a layered trust
+economy; the seating lever is live, the rest is the funded next step:
+
+- **Reputation, earned** — completing circles raises a per-address score (computed
+  from on-chain deposit events). Early slots become *earned, not granted*; a member
+  with no track record — including a new organizer — is seated last.
+- **Reputation as a soulbound credential** — that score accrues into a
+  *non-transferable* "Susu passport" NFT, so trust is **portable and composable**:
+  other Stacks apps (lending, DAOs, payroll) can read it to extend credit or access.
+  Soulbound by design — a transferable reputation token could be *bought*, which is
+  instant sybil.
+- **Early-access premium** — to take an early slot you haven't earned, pay a
+  non-refundable `split` to the others (a bidding-ROSCA "interest"): it prices the
+  risk up front and shrinks any grab-and-run profit.
+- **Pot ≤ demonstrated reputation** — you can only be early in a circle whose pot ≤
+  what you've already cycled, so a run can never exceed the reputation it burns.
+- **Yield on reserves** — compose idle/locked funds into Stacks yield (Zest,
+  Granite) so reserves earn while they wait.
+
+The honest core: on FlowVault you can make defaulting *cost money* (premium) and
+*lose future access* (reputation) — never *give money back* (slash). Susu is
+designed with that grain, not against it.
 
 ## Tech
 
