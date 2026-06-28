@@ -5,11 +5,11 @@ const FEATURES = [
   {
     title: "Save together & for yourself",
     body: "Every contribution is one deposit: dues split to the recipient, a savings slice locked for you, the rest held — all three primitives at once.",
+    accent: true,
   },
   {
-    title: "Cannot default",
-    body: "The least-trusted member is seated last — fully paid in before they receive. Default is made structurally impossible.",
-    accent: true,
+    title: "Newest member seated last",
+    body: "Seating is trust-tiered — the newest member is seated last, where they've paid in before they receive.",
   },
   {
     title: "Pass-through & non-custodial",
@@ -45,16 +45,17 @@ export default function Home() {
             className="float-in mx-auto mt-6 max-w-3xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl"
             style={{ animationDelay: "60ms" }}
           >
-            Rotating savings, where the newcomer{" "}
-            <span className="gradient-text">can&apos;t default.</span>
+            Rotating savings, where every payment{" "}
+            <span className="gradient-text">also saves for you.</span>
           </h1>
 
           <p
             className="float-in mx-auto mt-6 max-w-xl text-lg text-[var(--muted)]"
             style={{ animationDelay: "120ms" }}
           >
-            Susu is an on-chain ajo / esusu circle built on FlowVault. It stops pretending code can
-            enforce trust — and seats people so the math does.
+            Susu is an on-chain ajo / esusu circle on FlowVault. Each contribution is one transaction
+            that splits your dues to the group, locks savings for you, and holds the rest — all three
+            FlowVault primitives, at once.
           </p>
 
           <div
