@@ -24,6 +24,7 @@ type ApiCircle = {
   creator: string;
   createdAt: number;
   members: ApiMember[];
+  contributions?: { round: number; address: string; txId: string }[];
 };
 
 const short = (a: string) => (a ? `${a.slice(0, 5)}…${a.slice(-4)}` : "");
@@ -40,7 +41,6 @@ export default function CircleDetail({ id }: { id: string }) {
   const [txs, setTxs] = useState<{ label: string; txId: string }[]>([]);
   const [myVault, setMyVault] = useState<Awaited<ReturnType<typeof fetchVaultState>> | null>(null);
   const [saveAmount, setSaveAmount] = useState("");
-  const [contributedRounds, setContributedRounds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -137,7 +137,15 @@ export default function CircleDetail({ id }: { id: string }) {
         },
         ...t,
       ]);
-      setContributedRounds((r) => (r.includes(activeRound) ? r : [...r, activeRound]));
+      // Record it in the coordinator so it persists across reloads (no double-pay).
+      fetch(`/api/circles/${id}/contribute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, round: activeRound, txId: tx.txId }),
+      })
+        .then((r) => r.json())
+        .then((d) => d.circle && setCircle(d.circle))
+        .catch(() => {});
       fetchVaultState(address).then(setMyVault).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Contribution failed");
@@ -155,6 +163,9 @@ export default function CircleDetail({ id }: { id: string }) {
     );
 
   const effectiveSave = saveAmount.trim() || circle.save || "0";
+  const hasContributed = (r: number) =>
+    !!address && !!circle.contributions?.some((c) => c.address === address && c.round === r);
+  const roundsPaid = address ? (circle.contributions?.filter((c) => c.address === address).length ?? 0) : 0;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-10">
@@ -299,7 +310,7 @@ export default function CircleDetail({ id }: { id: string }) {
             Round {activeRound + 1}: <span className="text-[var(--foreground)]">{round.recipient.name}</span> receives.
           </p>
           {myRole === "contributor" ? (
-            contributedRounds.includes(activeRound) ? (
+            hasContributed(activeRound) ? (
               <p className="mt-3 text-emerald-400">✓ You&apos;ve contributed to round {activeRound + 1}.</p>
             ) : (
             <div className="mt-3 space-y-2">
@@ -352,7 +363,7 @@ export default function CircleDetail({ id }: { id: string }) {
             </div>
             <div className="rounded-lg border border-[var(--surface-border)] px-2 py-3">
               <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">Rounds paid</div>
-              <div className="mt-1 text-lg font-semibold">{txs.length}</div>
+              <div className="mt-1 text-lg font-semibold">{roundsPaid}</div>
             </div>
           </div>
           {myVault.lockedBalance > 0 && (

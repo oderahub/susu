@@ -18,6 +18,13 @@ export interface CircleMember {
   joinedAt: number;
 }
 
+export interface CircleContribution {
+  round: number;
+  address: string;
+  txId: string;
+  at: number;
+}
+
 export interface StoredCircle {
   id: string;
   name: string;
@@ -30,6 +37,7 @@ export interface StoredCircle {
   creator: string;
   createdAt: number;
   members: CircleMember[];
+  contributions?: CircleContribution[];
 }
 
 export interface CircleStore {
