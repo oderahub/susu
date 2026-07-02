@@ -61,9 +61,10 @@ export default function CircleDetail({ id }: { id: string }) {
       setMyVault(null);
       return;
     }
-    fetchVaultState(address)
-      .then(setMyVault)
-      .catch(() => setMyVault(null));
+    const refresh = () => fetchVaultState(address).then(setMyVault).catch(() => setMyVault(null));
+    refresh();
+    const t = setInterval(refresh, 12_000);
+    return () => clearInterval(t);
   }, [address]);
 
   const rounds = useMemo(
@@ -331,14 +332,29 @@ export default function CircleDetail({ id }: { id: string }) {
         </section>
       )}
 
-      {isMember && myVault && myVault.lockedBalance > 0 && (
+      {isMember && myVault && (
         <section className="glass mt-6 rounded-2xl p-5">
-          <h2 className="font-medium">Your savings</h2>
-          <p className="mt-2 text-sm">
-            🔒 <strong>{microToToken(myVault.lockedBalance)} USDCx</strong> locked until block #
-            {myVault.lockUntilBlock}. No early-unlock exists — not even you can withdraw it early. It frees when the
-            lock expires.
-          </p>
+          <h2 className="font-medium">Your position</h2>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-lg border border-[var(--surface-border)] px-2 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">Savings (locked)</div>
+              <div className="mt-1 text-lg font-semibold text-amber-400">{microToToken(myVault.lockedBalance)}</div>
+            </div>
+            <div className="rounded-lg border border-[var(--surface-border)] px-2 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">Available</div>
+              <div className="mt-1 text-lg font-semibold text-emerald-400">{microToToken(myVault.unlockedBalance)}</div>
+            </div>
+            <div className="rounded-lg border border-[var(--surface-border)] px-2 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">Rounds paid</div>
+              <div className="mt-1 text-lg font-semibold">{txs.length}</div>
+            </div>
+          </div>
+          {myVault.lockedBalance > 0 && (
+            <p className="mt-3 rounded-lg bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
+              🔒 Your savings are locked until block #{myVault.lockUntilBlock}. No early-unlock exists — not even you
+              can withdraw it early.
+            </p>
+          )}
         </section>
       )}
 
