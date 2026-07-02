@@ -21,6 +21,9 @@ import { makeUnsignedContractCall, serializeTransaction, PostConditionMode } fro
 import type { ContractCallExecutor } from "flowvault-sdk";
 
 let cachedPublicKey: string | null = null;
+// Tracks the next nonce across sequential txs (e.g. set-routing-rules → deposit)
+// so the second tx doesn't collide before the first lands in the mempool.
+let localNonce: bigint | null = null;
 
 /** The connected Stacks (STX) address, or null if not connected. */
 export function getStxAddress(): string | null {
@@ -81,7 +84,9 @@ export const walletExecutor: ContractCallExecutor = async (req) => {
   if (!senderAddress) throw new Error("Wallet not connected");
 
   const publicKey = await getSenderPublicKey();
-  const nonce = await fetchNonce(senderAddress);
+  const chainNonce = await fetchNonce(senderAddress);
+  // Use our tracked nonce if it's ahead of the chain's (a prior tx is still in the mempool).
+  const nonce = localNonce !== null && localNonce > chainNonce ? localNonce : chainNonce;
 
   const tx = await makeUnsignedContractCall({
     contractAddress: req.contractAddress,
@@ -110,6 +115,10 @@ export const walletExecutor: ContractCallExecutor = async (req) => {
     body: JSON.stringify({ tx: signedHex }),
   });
   const data = (await res.json()) as { txid?: string; error?: string };
-  if (!res.ok || !data.txid) throw new Error(data.error || "Broadcast failed");
+  if (!res.ok || !data.txid) {
+    localNonce = null; // failed — re-sync from the chain next time
+    throw new Error(data.error || "Broadcast failed");
+  }
+  localNonce = nonce + 1n; // reserve the next nonce for a follow-up tx
   return { txid: data.txid };
 };
