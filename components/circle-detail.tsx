@@ -40,6 +40,7 @@ export default function CircleDetail({ id }: { id: string }) {
   const [txs, setTxs] = useState<{ label: string; txId: string }[]>([]);
   const [myVault, setMyVault] = useState<Awaited<ReturnType<typeof fetchVaultState>> | null>(null);
   const [saveAmount, setSaveAmount] = useState("");
+  const [contributedRounds, setContributedRounds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -136,6 +137,7 @@ export default function CircleDetail({ id }: { id: string }) {
         },
         ...t,
       ]);
+      setContributedRounds((r) => (r.includes(activeRound) ? r : [...r, activeRound]));
       fetchVaultState(address).then(setMyVault).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Contribution failed");
@@ -297,6 +299,9 @@ export default function CircleDetail({ id }: { id: string }) {
             Round {activeRound + 1}: <span className="text-[var(--foreground)]">{round.recipient.name}</span> receives.
           </p>
           {myRole === "contributor" ? (
+            contributedRounds.includes(activeRound) ? (
+              <p className="mt-3 text-emerald-400">✓ You&apos;ve contributed to round {activeRound + 1}.</p>
+            ) : (
             <div className="mt-3 space-y-2">
               <label className="block text-sm text-[var(--muted)]">
                 Your savings this round (USDCx — locked for you):
@@ -324,6 +329,7 @@ export default function CircleDetail({ id }: { id: string }) {
                 {busy === "contribute" ? "Signing…" : "Contribute"}
               </button>
             </div>
+            )
           ) : myRole === "recipient" ? (
             <p className="mt-3 text-emerald-400">You receive this round — contributions arrive in your wallet.</p>
           ) : (
