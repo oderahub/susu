@@ -8,8 +8,9 @@ type ApiCircle = {
   id: string;
   name: string;
   contribution: string;
+  save: string;
   seats: number;
-  members: { address: string }[];
+  members: { address: string; name: string }[];
   createdAt: number;
 };
 
@@ -51,7 +52,10 @@ export default function CirclesDirectory() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {circles.map((c) => {
             const full = c.members.length >= c.seats;
+            const spotsLeft = Math.max(0, c.seats - c.members.length);
             const pot = (c.seats - 1) * Number(c.contribution);
+            const totalSave = (c.seats - 1) * Number(c.save || 0);
+            const names = c.members.map((m) => m.name).filter(Boolean);
             return (
               <Link key={c.id} href={`/c/${c.id}`} className="glass glass-hover block rounded-2xl p-5">
                 <div className="flex items-center justify-between gap-2">
@@ -61,25 +65,44 @@ export default function CirclesDirectory() {
                       full ? "bg-neutral-700 text-neutral-300" : "bg-emerald-900/40 text-emerald-300"
                     }`}
                   >
-                    {full ? "full" : "open"}
+                    {full ? "full" : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`}
                   </span>
                 </div>
-                <dl className="mt-3 space-y-1 text-sm text-[var(--muted)]">
+
+                <div className="mt-4">
+                  <div className="text-2xl font-semibold text-[var(--brand)]">{pot} USDCx</div>
+                  <div className="text-xs text-[var(--muted)]">pot you collect on your turn</div>
+                </div>
+
+                <dl className="mt-4 space-y-1 text-sm text-[var(--muted)]">
                   <div className="flex justify-between">
-                    <dt>Contribution</dt>
+                    <dt>Dues / round</dt>
                     <dd>{Number(c.contribution)} USDCx</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt>Pot / round</dt>
-                    <dd>{pot} USDCx</dd>
+                    <dt>Savings / round</dt>
+                    <dd>{Number(c.save || 0)} USDCx locked</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt>Seats</dt>
+                    <dt>Members</dt>
                     <dd>
                       {c.members.length}/{c.seats}
                     </dd>
                   </div>
                 </dl>
+
+                {totalSave > 0 && (
+                  <div className="mt-3 rounded-lg bg-emerald-900/20 px-2 py-1.5 text-xs text-emerald-300">
+                    + build {totalSave} USDCx in savings for yourself over the circle
+                  </div>
+                )}
+
+                {names.length > 0 && (
+                  <p className="mt-3 truncate text-xs text-[var(--muted)]">
+                    with {names.slice(0, 3).join(", ")}
+                    {names.length > 3 ? ` +${names.length - 3}` : ""}
+                  </p>
+                )}
               </Link>
             );
           })}
