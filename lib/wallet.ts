@@ -97,5 +97,19 @@ export const walletExecutor: ContractCallExecutor = async (req) => {
   });
 
   const transaction = serializeTransaction(tx);
-  return request("stx_signTransaction", { transaction, broadcast: true });
+
+  // Sign only (broadcast:true isn't reliably honored — it returned no txid), then
+  // broadcast the signed tx ourselves server-side to get the real txid.
+  const signed = await request("stx_signTransaction", { transaction, broadcast: false });
+  const signedHex = signed?.transaction;
+  if (!signedHex) throw new Error("Wallet did not return a signed transaction");
+
+  const res = await fetch("/api/broadcast", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tx: signedHex }),
+  });
+  const data = (await res.json()) as { txid?: string; error?: string };
+  if (!res.ok || !data.txid) throw new Error(data.error || "Broadcast failed");
+  return { txid: data.txid };
 };
