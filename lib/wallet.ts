@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Wallet glue for @stacks/connect v8 (Leather / Xverse).
+ * Wallet glue for @stacks/connect v8 (Leather / Xverse) — non-custodial.
  *
- * Susu is non-custodial: every state-changing call is signed by the user's own
- * wallet. `walletExecutor` is handed to the FlowVault SDK so its
- * setRoutingRules / deposit / withdraw calls open the wallet instead of using a
- * private key.
+ * Why we don't use `request("stx_callContract")`: connect serializes the
+ * functionArgs with its own bundled Clarity helper, which breaks in the minified
+ * production build ("Cl.serialize is not a function"). Instead we build AND
+ * serialize the transaction here with @stacks/transactions v7, then hand the
+ * wallet a ready-made tx via `stx_signTransaction` — which never touches
+ * connect's serializer. Works in dev and prod alike.
  */
 import {
   connect as stacksConnect,
@@ -15,8 +17,10 @@ import {
   isConnected,
   request,
 } from "@stacks/connect";
-import { PostConditionMode, type ContractIdString } from "@stacks/transactions";
+import { makeUnsignedContractCall, serializeTransaction, PostConditionMode } from "@stacks/transactions";
 import type { ContractCallExecutor } from "flowvault-sdk";
+
+let cachedPublicKey: string | null = null;
 
 /** The connected Stacks (STX) address, or null if not connected. */
 export function getStxAddress(): string | null {
@@ -27,39 +31,71 @@ export function isWalletConnected(): boolean {
   return isConnected() && !!getStxAddress();
 }
 
-/** Open the wallet picker and connect. Returns the STX address on success. */
+/** The STX entry (address starts with S) from a connect/getAddresses result. */
+function stxEntry(addresses?: { address?: string; publicKey?: string }[]) {
+  return addresses?.find((a) => a.address?.startsWith("S"));
+}
+
+/** Open the wallet picker and connect. Caches the STX public key for signing. */
 export async function connectWallet(): Promise<string | null> {
-  await stacksConnect();
+  const res = await stacksConnect();
+  const pk = stxEntry(res?.addresses)?.publicKey;
+  if (pk) cachedPublicKey = pk;
   return getStxAddress();
 }
 
 export function disconnectWallet(): void {
+  cachedPublicKey = null;
   stacksDisconnect();
 }
 
-/**
- * The SDK hands us a @stacks/transactions `PostConditionMode` enum value
- * (Allow = 1 / Deny = 2), but @stacks/connect's `request` wants the string name
- * "allow"/"deny". Normalize both representations (and pass-through strings).
- */
-function toPcModeName(mode: unknown): "allow" | "deny" | undefined {
-  if (mode === "allow" || mode === PostConditionMode.Allow) return "allow";
-  if (mode === "deny" || mode === PostConditionMode.Deny) return "deny";
-  return undefined;
+/** The connected account's public key — needed to build the unsigned tx. */
+async function getSenderPublicKey(): Promise<string> {
+  if (cachedPublicKey) return cachedPublicKey;
+  const res = await request("stx_getAddresses");
+  const pk = stxEntry(res?.addresses)?.publicKey;
+  if (!pk) throw new Error("Could not read wallet public key");
+  cachedPublicKey = pk;
+  return pk;
+}
+
+function toPcMode(m: unknown): PostConditionMode {
+  if (m === "allow" || m === PostConditionMode.Allow) return PostConditionMode.Allow;
+  return PostConditionMode.Deny;
+}
+
+async function fetchNonce(address: string): Promise<bigint> {
+  const res = await fetch(`/api/nonce/${address}`);
+  if (!res.ok) throw new Error("Could not fetch nonce");
+  const data = (await res.json()) as { nonce?: number };
+  return BigInt(data.nonce ?? 0);
 }
 
 /**
- * FlowVault SDK executor → routes a contract call to the connected wallet via
- * the SIP-030 `stx_callContract` RPC. The SDK reads `.txid` off the result.
+ * FlowVault SDK executor. Builds + serializes the contract-call tx here (v7),
+ * then signs + broadcasts via `stx_signTransaction`. The SDK reads `.txid` off
+ * the result.
  */
 export const walletExecutor: ContractCallExecutor = async (req) => {
-  const postConditionMode = toPcModeName(req.postConditionMode);
-  return request("stx_callContract", {
-    contract: `${req.contractAddress}.${req.contractName}` as ContractIdString,
+  const senderAddress = getStxAddress();
+  if (!senderAddress) throw new Error("Wallet not connected");
+
+  const publicKey = await getSenderPublicKey();
+  const nonce = await fetchNonce(senderAddress);
+
+  const tx = await makeUnsignedContractCall({
+    contractAddress: req.contractAddress,
+    contractName: req.contractName,
     functionName: req.functionName,
     functionArgs: req.functionArgs,
+    publicKey,
     network: req.network,
-    ...(req.postConditions ? { postConditions: req.postConditions } : {}),
-    ...(postConditionMode ? { postConditionMode } : {}),
+    nonce,
+    fee: 10_000n,
+    postConditions: req.postConditions,
+    postConditionMode: toPcMode(req.postConditionMode),
   });
+
+  const transaction = serializeTransaction(tx);
+  return request("stx_signTransaction", { transaction, broadcast: true });
 };
